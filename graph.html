@@ -1,0 +1,155 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 600px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "id": "192.168.1.125", "is_internal": true, "is_malicious": false, "label": "192.168.1.125", "role": "source", "shape": "dot", "size": 10, "suspicion": "Nmap Scripting Engine", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.124", "is_internal": true, "label": "192.168.1.124", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "TCP", "label": "TCP", "shape": "dot", "size": 10, "type": "Protocol"}, {"color": "#97c2fc", "id": "reconnaissance", "label": "reconnaissance", "shape": "dot", "size": 10, "type": "AttackType"}, {"color": "#97c2fc", "id": "192.168.1.201", "is_internal": true, "is_malicious": false, "label": "192.168.1.201", "role": "destination", "shape": "dot", "size": 10, "suspicion": "Nmap Scripting Engine User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "ICMP", "label": "ICMP", "shape": "dot", "size": 10, "type": "Protocol"}, {"color": "#97c2fc", "id": "192.168.1.248", "is_internal": true, "is_malicious": false, "label": "192.168.1.248", "role": "destination", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.15", "is_internal": true, "label": "192.168.1.15", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "HTTP", "label": "HTTP", "shape": "dot", "size": 10, "type": "Protocol"}, {"color": "#97c2fc", "id": "none", "label": "none", "shape": "dot", "size": 10, "type": "AttackType"}, {"color": "#97c2fc", "id": "192.168.1.236", "is_internal": true, "is_malicious": false, "label": "192.168.1.236", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.219", "is_internal": true, "label": "192.168.1.219", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.118", "is_internal": true, "label": "192.168.1.118", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "UDP", "label": "UDP", "shape": "dot", "size": 10, "type": "Protocol"}, {"color": "#97c2fc", "id": "192.168.1.221", "is_internal": true, "is_malicious": false, "label": "192.168.1.221", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.61", "is_internal": true, "label": "192.168.1.61", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.134", "is_internal": true, "is_malicious": false, "label": "192.168.1.134", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.81", "is_internal": true, "label": "192.168.1.81", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "FTP", "label": "FTP", "shape": "dot", "size": 10, "type": "Protocol"}, {"color": "#97c2fc", "id": "192.168.1.77", "is_internal": true, "is_malicious": false, "label": "192.168.1.77", "role": "source", "shape": "dot", "size": 10, "suspicion": "SQLMap User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "Potential SQL Injection Attempt", "label": "Potential SQL Injection Attempt", "shape": "dot", "size": 10, "type": "AttackType"}, {"color": "#97c2fc", "id": "192.168.1.130", "is_internal": true, "is_malicious": false, "label": "192.168.1.130", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.68", "is_internal": true, "label": "192.168.1.68", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.140", "is_internal": true, "is_malicious": false, "label": "192.168.1.140", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.181", "is_internal": true, "label": "192.168.1.181", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.228", "is_internal": true, "is_malicious": false, "label": "192.168.1.228", "role": "source", "shape": "dot", "size": 10, "suspicion": "SQLMap/1.6-dev User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.28", "is_internal": true, "label": "192.168.1.28", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "HTTPS", "label": "HTTPS", "shape": "dot", "size": 10, "type": "Protocol"}, {"color": "#97c2fc", "id": "192.168.1.163", "is_internal": true, "is_malicious": false, "label": "192.168.1.163", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.86", "is_internal": true, "is_malicious": false, "label": "192.168.1.86", "role": "source", "shape": "dot", "size": 10, "suspicion": "Nmap Scripting Engine User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.198", "is_internal": true, "label": "192.168.1.198", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "network_scan", "label": "network_scan", "shape": "dot", "size": 10, "type": "AttackType"}, {"color": "#97c2fc", "id": "192.168.1.20", "is_internal": true, "is_malicious": false, "label": "192.168.1.20", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.242", "is_internal": true, "label": "192.168.1.242", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.33", "is_internal": true, "is_malicious": false, "label": "192.168.1.33", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.11", "is_internal": true, "label": "192.168.1.11", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "88.29.76.112", "is_internal": false, "is_malicious": false, "label": "88.29.76.112", "role": "source", "shape": "dot", "size": 10, "suspicion": "Nmap Scripting Engine User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.250", "is_internal": true, "label": "192.168.1.250", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "103.93.57.36", "is_internal": false, "is_malicious": false, "label": "103.93.57.36", "role": "source", "shape": "dot", "size": 10, "suspicion": "unknown", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.18", "is_internal": true, "is_malicious": false, "label": "192.168.1.18", "role": "source", "shape": "dot", "size": 10, "suspicion": "Nmap Scripting Engine User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "217.89.155.68", "is_internal": false, "is_malicious": false, "label": "217.89.155.68", "role": "source", "shape": "dot", "size": 10, "suspicion": "SQLMap User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.225", "is_internal": true, "label": "192.168.1.225", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "SSH", "label": "SSH", "shape": "dot", "size": 10, "type": "Protocol"}, {"color": "#97c2fc", "id": "potential SQL injection or reconnaissance", "label": "potential SQL injection or reconnaissance", "shape": "dot", "size": 10, "type": "AttackType"}, {"color": "#97c2fc", "id": "144.138.68.192", "is_internal": false, "is_malicious": false, "label": "144.138.68.192", "role": "source", "shape": "dot", "size": 10, "suspicion": "Nmap Scripting Engine User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.112", "is_internal": true, "label": "192.168.1.112", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "137.197.33.33", "is_internal": false, "is_malicious": false, "label": "137.197.33.33", "role": "source", "shape": "dot", "size": 10, "suspicion": "SQLMap/1.6-dev User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.176", "is_internal": true, "label": "192.168.1.176", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "221.28.64.50", "is_internal": false, "is_malicious": false, "label": "221.28.64.50", "role": "source", "shape": "dot", "size": 10, "suspicion": "SQLMap/1.6-dev User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.231", "is_internal": true, "label": "192.168.1.231", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.241", "is_internal": true, "is_malicious": false, "label": "192.168.1.241", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.98", "is_internal": true, "label": "192.168.1.98", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "235.165.118.37", "is_internal": false, "is_malicious": false, "label": "235.165.118.37", "role": "source", "shape": "dot", "size": 10, "suspicion": "Nmap Scripting Engine User-Agent", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.74", "is_internal": true, "label": "192.168.1.74", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.132", "is_internal": true, "is_malicious": false, "label": "192.168.1.132", "role": "source", "shape": "dot", "size": 10, "suspicion": "none", "type": "IP"}, {"color": "#97c2fc", "id": "192.168.1.170", "is_internal": true, "label": "192.168.1.170", "role": "destination", "shape": "dot", "size": 10, "type": "IP"}, {"color": "#97c2fc", "id": "login attempt", "label": "login attempt", "shape": "dot", "size": 10, "type": "AttackType"}, {"color": "#97c2fc", "id": "unknown", "label": "unknown", "shape": "dot", "size": 10, "type": "AttackType"}]);
+                  edges = new vis.DataSet([{"action": "blocked", "bytes": 10889, "count": 1, "event_id": 1, "from": "192.168.1.125", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Blocked Nmap scan from internal source IP 192.168.1.125 to internal destination IP 192.168.1.124", "threat": "benign", "timestamp": "2024-05-01T00:00:00", "to": "192.168.1.124", "width": 1}, {"from": "192.168.1.125", "rel_type": "USES_PROTOCOL", "to": "TCP", "width": 1}, {"from": "192.168.1.125", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "blocked", "bytes": 36522, "count": 1, "event_id": 2, "from": "192.168.1.201", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Blocked ICMP packet from 192.168.1.201 to 192.168.1.201 due to Nmap Scripting Engine User-Agent", "threat": "benign", "timestamp": "2024-07-18T00:00:00", "to": "192.168.1.201", "width": 1}, {"from": "192.168.1.201", "rel_type": "USES_PROTOCOL", "to": "ICMP", "width": 1}, {"from": "192.168.1.201", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "allowed", "bytes": 20652, "count": 1, "event_id": 3, "from": "192.168.1.248", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A user with IP address 192.168.1.248 accessed the /login page on the server with IP address 192.168.1.15 using the HTTP protocol and Mozilla/5.0 browser. The event was classified as benign and allowed, with 20652 bytes transferred.", "threat": "benign", "timestamp": "2024-04-07T00:00:00", "to": "192.168.1.15", "width": 1}, {"from": "192.168.1.248", "rel_type": "USES_PROTOCOL", "to": "HTTP", "width": 1}, {"from": "192.168.1.248", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 5350, "count": 1, "event_id": 4, "from": "192.168.1.236", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A user with a Mac OS X device accessed the login page via HTTP from 192.168.1.236 to 192.168.1.219. The event was allowed and labeled as benign. The User-Agent header indicates the use of Chrome 117.0.0.0 on the device.", "threat": "benign", "timestamp": "2024-10-26T00:00:00", "to": "192.168.1.219", "width": 1}, {"from": "192.168.1.236", "rel_type": "USES_PROTOCOL", "to": "HTTP", "width": 1}, {"from": "192.168.1.236", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 1650, "count": 1, "event_id": 17, "from": "192.168.1.236", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign UDP packet was sent from 192.168.1.236 to 192.168.1.118 and was allowed by the firewall. The packet was 1650 bytes in size and was sent using the Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36 User-Agent.", "threat": "benign", "timestamp": "2024-04-23T00:00:00", "to": "192.168.1.118", "width": 1}, {"from": "192.168.1.236", "rel_type": "USES_PROTOCOL", "to": "UDP", "width": 1}, {"action": "allowed", "bytes": 40691, "count": 1, "event_id": 5, "from": "192.168.1.221", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign ICMP event occurred from 192.168.1.221 to 192.168.1.61, transferring 40691 bytes. The event was allowed and does not indicate any malicious activity.", "threat": "benign", "timestamp": "2024-10-31T00:00:00", "to": "192.168.1.61", "width": 1}, {"from": "192.168.1.221", "rel_type": "USES_PROTOCOL", "to": "ICMP", "width": 1}, {"from": "192.168.1.221", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 15742, "count": 1, "event_id": 6, "from": "192.168.1.134", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "An FTP connection was established from 192.168.1.134 to 192.168.1.81. The connection was allowed and 15742 bytes were transferred. The user agent used was curl/7.64.1 and the path accessed was /backup. The event is classified as benign.", "threat": "benign", "timestamp": "2024-12-02T00:00:00", "to": "192.168.1.81", "width": 1}, {"from": "192.168.1.134", "rel_type": "USES_PROTOCOL", "to": "FTP", "width": 1}, {"from": "192.168.1.134", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 30134, "count": 1, "event_id": 7, "from": "192.168.1.77", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A UDP packet with a SQLMap User-Agent was sent from 192.168.1.77 to 192.168.1.118 and was allowed by the firewall. The packet was 30134 bytes in size.", "threat": "benign", "timestamp": "2024-03-08T00:00:00", "to": "192.168.1.118", "width": 1}, {"from": "192.168.1.77", "rel_type": "USES_PROTOCOL", "to": "UDP", "width": 1}, {"from": "192.168.1.77", "rel_type": "TRIGGERED", "to": "Potential SQL Injection Attempt", "width": 1}, {"action": "blocked", "bytes": 16109, "count": 1, "event_id": 8, "from": "192.168.1.130", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A blocked TCP connection from 192.168.1.130 to 192.168.1.68 was detected by the firewall. The connection was made using curl/7.64.1 and transferred 16109 bytes. The threat was labeled as benign.", "threat": "benign", "timestamp": "2024-02-07T00:00:00", "to": "192.168.1.68", "width": 1}, {"from": "192.168.1.130", "rel_type": "USES_PROTOCOL", "to": "TCP", "width": 1}, {"from": "192.168.1.130", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 36446, "count": 1, "event_id": 9, "from": "192.168.1.140", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign UDP connection from 192.168.1.140 to 192.168.1.181 was allowed, transferring 36446 bytes. The connection was initiated using curl/7.64.1 and targeted the root path (/).", "threat": "benign", "timestamp": "2024-03-21T00:00:00", "to": "192.168.1.181", "width": 1}, {"from": "192.168.1.140", "rel_type": "USES_PROTOCOL", "to": "UDP", "width": 1}, {"from": "192.168.1.140", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 18565, "count": 1, "event_id": 10, "from": "192.168.1.228", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Potential SQLMap scan on internal network", "threat": "benign", "timestamp": "2024-03-09T00:00:00", "to": "192.168.1.28", "width": 1}, {"from": "192.168.1.228", "rel_type": "USES_PROTOCOL", "to": "HTTPS", "width": 1}, {"from": "192.168.1.228", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "blocked", "bytes": 3429, "count": 1, "event_id": 11, "from": "192.168.1.163", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign UDP packet was blocked from 192.168.1.163 to 192.168.1.219. The packet was 3429 bytes in size and was identified by the ids log type. The user agent was Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36.", "threat": "benign", "timestamp": "2024-06-24T00:00:00", "to": "192.168.1.219", "width": 1}, {"from": "192.168.1.163", "rel_type": "USES_PROTOCOL", "to": "UDP", "width": 1}, {"action": "blocked", "bytes": 48677, "count": 1, "event_id": 12, "from": "192.168.1.86", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Blocked Nmap network scan from internal source IP 192.168.1.86 to internal destination IP 192.168.1.198", "threat": "benign", "timestamp": "2024-05-21T00:00:00", "to": "192.168.1.198", "width": 1}, {"from": "192.168.1.86", "rel_type": "USES_PROTOCOL", "to": "TCP", "width": 1}, {"from": "192.168.1.86", "rel_type": "TRIGGERED", "to": "network_scan", "width": 1}, {"action": "allowed", "bytes": 2461, "count": 1, "event_id": 13, "from": "192.168.1.20", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign HTTPS connection from 192.168.1.20 to 192.168.1.242 was allowed, transferring 2461 bytes. The connection was made using curl/7.64.1 to access the /admin/config path.", "threat": "benign", "timestamp": "2024-10-14T00:00:00", "to": "192.168.1.242", "width": 1}, {"from": "192.168.1.20", "rel_type": "USES_PROTOCOL", "to": "HTTPS", "width": 1}, {"from": "192.168.1.20", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 13867, "count": 1, "event_id": 14, "from": "192.168.1.33", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign UDP packet was sent from 192.168.1.33 to 192.168.1.11 and was allowed by the ids system.", "threat": "benign", "timestamp": "2024-10-09T00:00:00", "to": "192.168.1.11", "width": 1}, {"from": "192.168.1.33", "rel_type": "USES_PROTOCOL", "to": "UDP", "width": 1}, {"from": "192.168.1.33", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "allowed", "bytes": 11703, "count": 1, "event_id": 15, "from": "88.29.76.112", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A low-severity reconnaissance event occurred from an external source IP address 88.29.76.112 to an internal destination IP address 192.168.1.250. The event involved an HTTP request to the /login path with a User-Agent header indicating the use of the Nmap Scripting Engine, suggesting potential scanning activity.", "threat": "benign", "timestamp": "2024-06-30T00:00:00", "to": "192.168.1.250", "width": 1}, {"from": "88.29.76.112", "rel_type": "USES_PROTOCOL", "to": "HTTP", "width": 1}, {"from": "88.29.76.112", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "allowed", "bytes": 25170, "count": 1, "event_id": 16, "from": "103.93.57.36", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign FTP connection was allowed from 103.93.57.36 to 192.168.1.201, transferring 25170 bytes. The connection was initiated by a user using Chrome 120.0.0.0 on Windows 10.", "threat": "benign", "timestamp": "2024-04-01T00:00:00", "to": "192.168.1.201", "width": 1}, {"from": "103.93.57.36", "rel_type": "USES_PROTOCOL", "to": "FTP", "width": 1}, {"action": "blocked", "bytes": 33484, "count": 1, "event_id": 18, "from": "192.168.1.18", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Blocked HTTPS request from 192.168.1.18 to 192.168.1.248 with Nmap Scripting Engine User-Agent", "threat": "benign", "timestamp": "2024-06-17T00:00:00", "to": "192.168.1.248", "width": 1}, {"from": "192.168.1.18", "rel_type": "USES_PROTOCOL", "to": "HTTPS", "width": 1}, {"from": "192.168.1.18", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "allowed", "bytes": 7204, "count": 1, "event_id": 19, "from": "217.89.155.68", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign SSH connection was established from a non-internal IP address to an internal IP address, with a User-Agent string indicating potential SQLMap activity.", "threat": "benign", "timestamp": "2024-06-18T00:00:00", "to": "192.168.1.225", "width": 1}, {"from": "217.89.155.68", "rel_type": "USES_PROTOCOL", "to": "SSH", "width": 1}, {"from": "217.89.155.68", "rel_type": "TRIGGERED", "to": "potential SQL injection or reconnaissance", "width": 1}, {"action": "allowed", "bytes": 3008, "count": 1, "event_id": 20, "from": "144.138.68.192", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A low-severity reconnaissance event occurred from an external source IP address 144.138.68.192 to an internal destination IP address 192.168.1.112 using the HTTP protocol. The event was allowed and labeled as benign by the ids log type. The User-Agent header identified the Nmap Scripting Engine, which is often used for network scanning and reconnaissance. The destination path was /login, which could indicate an attempt to gather information about the login system.", "threat": "benign", "timestamp": "2024-06-25T00:00:00", "to": "192.168.1.112", "width": 1}, {"from": "144.138.68.192", "rel_type": "USES_PROTOCOL", "to": "HTTP", "width": 1}, {"from": "144.138.68.192", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "allowed", "bytes": 21739, "count": 1, "event_id": 21, "from": "137.197.33.33", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A low-severity reconnaissance event was detected from an external source with IP address 137.197.33.33 to an internal destination with IP address 192.168.1.176. The event involved an HTTPS request to the /auth endpoint with a suspicious User-Agent header indicating potential SQLMap activity. However, the event was classified as benign and allowed.", "threat": "benign", "timestamp": "2024-09-23T00:00:00", "to": "192.168.1.176", "width": 1}, {"from": "137.197.33.33", "rel_type": "USES_PROTOCOL", "to": "HTTPS", "width": 1}, {"from": "137.197.33.33", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "blocked", "bytes": 19476, "count": 1, "event_id": 22, "from": "221.28.64.50", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Blocked UDP traffic from external source with SQLMap User-Agent to internal destination", "threat": "benign", "timestamp": "2024-12-05T00:00:00", "to": "192.168.1.231", "width": 1}, {"from": "221.28.64.50", "rel_type": "USES_PROTOCOL", "to": "UDP", "width": 1}, {"from": "221.28.64.50", "rel_type": "TRIGGERED", "to": "Potential SQL Injection Attempt", "width": 1}, {"action": "allowed", "bytes": 37396, "count": 1, "event_id": 23, "from": "192.168.1.241", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "A benign HTTP request was made from 192.168.1.241 to 192.168.1.98, accessing the /api/login endpoint with a User-Agent of curl/7.64.1. The request was allowed and transferred 37396 bytes.", "threat": "benign", "timestamp": "2024-04-08T00:00:00", "to": "192.168.1.98", "width": 1}, {"from": "192.168.1.241", "rel_type": "USES_PROTOCOL", "to": "HTTP", "width": 1}, {"from": "192.168.1.241", "rel_type": "TRIGGERED", "to": "none", "width": 1}, {"action": "blocked", "bytes": 33600, "count": 1, "event_id": 24, "from": "235.165.118.37", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Blocked TCP connection from external source with Nmap Scripting Engine User-Agent to internal destination", "threat": "benign", "timestamp": "2024-10-07T00:00:00", "to": "192.168.1.74", "width": 1}, {"from": "235.165.118.37", "rel_type": "USES_PROTOCOL", "to": "TCP", "width": 1}, {"from": "235.165.118.37", "rel_type": "TRIGGERED", "to": "reconnaissance", "width": 1}, {"action": "blocked", "bytes": 49326, "count": 1, "event_id": 25, "from": "192.168.1.132", "rel_type": "CONNECTED_TO", "severity": "low", "summary": "Blocked HTTP request from 192.168.1.132 to 192.168.1.170 for /wp-login.php", "threat": "benign", "timestamp": "2024-12-03T00:00:00", "to": "192.168.1.170", "width": 1}, {"from": "192.168.1.132", "rel_type": "USES_PROTOCOL", "to": "HTTP", "width": 1}, {"from": "192.168.1.132", "rel_type": "TRIGGERED", "to": "login attempt", "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
