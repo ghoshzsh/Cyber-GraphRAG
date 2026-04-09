@@ -72,9 +72,9 @@ CSV Logs (Kaggle dataset)
 
 | Role | Model | Used In |
 |------|--------|---------|
-| Chat / Reasoning | `meta/llama-3.1-8b-instruct` | Steps 1, 3, 5 |
-| Embedding | `nvidia/nv-embedqa-e5-v5` | Step 3 (GraphRAG index) |
-| Reranker / Prioritization | `nvidia/llama-3.2-nv-rerankqa-1b-v1` | Step 3 (context scoring) |
+| Chat / Reasoning | `meta/llama-3.3-70b-instruct` | Steps 1, 3, 5 |
+| Embedding | `qwen3-embedding:4b` - Ollama| Step 3 (GraphRAG index) |
+| Reranker / Prioritization | `nvidia/llama-nemotron-rerank-vl-1b-v2` | Step 3 (context scoring) |
 
 ---
 
