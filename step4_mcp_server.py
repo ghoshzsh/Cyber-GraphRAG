@@ -34,6 +34,7 @@ HOW TO RUN:
   The agent will automatically discover and call these tools.
 """
 
+import asyncio
 import json
 import os
 from datetime import datetime
@@ -48,34 +49,48 @@ load_dotenv()
 # ──────────────────────────────────────────────
 # 1.  CREATE THE MCP SERVER
 # ──────────────────────────────────────────────
-# FastMCP wraps your Python functions and exposes them as MCP tools.
-# The agent in Step 5 connects to this server and gets the tool list.
 
 mcp = FastMCP(
     name        = "ThreatIntelMCP",
+    description = "Threat intelligence tools for the security SOC analyst agent",
 )
 
 
 # ──────────────────────────────────────────────
-# 2.  LOAD THE GRAPH (our "threat intel database")
+# 2.  GRAPHITI CLIENT (replaces NetworkX graph)
 # ──────────────────────────────────────────────
-# We lazy-load the graph so the server starts fast.
-# In production this would be a real SIEM or threat feed.
+# We lazy-init Graphiti so the server starts fast.
+# All queries now go through Graphiti → FalkorDB.
 
-_graph = None
+_graphiti = None
 
-def get_graph():
-    global _graph
-    if _graph is None:
-        from step2_graph_builder import ThreatGraph
-        graph_path = "data/threat_graph.json"
-        if os.path.exists(graph_path):
-            _graph = ThreatGraph.load(graph_path)
-        else:
-            # Build from CSV if no saved graph
-            _graph = ThreatGraph()
-            _graph.ingest_from_csv(os.getenv("DATA_PATH", "data/sample_logs.csv"))
-    return _graph
+def get_graphiti():
+    global _graphiti
+    if _graphiti is None:
+        from graphiti_core import Graphiti
+        from graphiti_core.driver.falkordb_driver import FalkorDriver
+        from graphiti_core.llm_client import OpenAIClient, LLMConfig
+        from graphiti_core.embedder import OpenAIEmbedder, OpenAIEmbedderConfig
+
+        _graphiti = Graphiti(
+            llm_client = OpenAIClient(config=LLMConfig(
+                api_key  = os.getenv("NVIDIA_API_KEY"),
+                model    = os.getenv("NIM_CHAT_MODEL", "meta/llama-3.1-8b-instruct"),
+                base_url = os.getenv("NIM_BASE_URL",   "https://integrate.api.nvidia.com/v1"),
+            )),
+            embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(
+                api_key         = os.getenv("NVIDIA_API_KEY"),
+                embedding_model = os.getenv("NIM_EMBED_MODEL", "nvidia/nv-embedqa-e5-v5"),
+                base_url        = os.getenv("NIM_BASE_URL",    "https://integrate.api.nvidia.com/v1"),
+                embedding_dim   = 1024,
+            )),
+            graph_driver = FalkorDriver(
+                host     = os.getenv("FALKORDB_HOST", "localhost"),
+                port     = int(os.getenv("FALKORDB_PORT", "6379")),
+                database = "threat_intel_edu",
+            ),
+        )
+    return _graphiti
 
 
 # ──────────────────────────────────────────────
@@ -89,46 +104,44 @@ def get_graph():
 def lookup_ip(ip_address: str) -> str:
     """
     Look up threat intelligence for a specific IP address.
-    Returns the IP's known relationships, attack history, and risk profile
-    from our internal threat graph.
+    Searches the Graphiti knowledge graph (FalkorDB) for all facts
+    and relationships involving this IP.
 
     Args:
         ip_address: The IP address to investigate (e.g. '10.0.0.45')
     """
-    graph = get_graph()
+    graphiti = get_graphiti()
 
-    if not graph.G.has_node(ip_address):
-        return json.dumps({
-            "ip": ip_address,
-            "status": "unknown",
-            "message": "This IP has no recorded activity in our dataset",
-        })
+    # Run async search in sync context for MCP tool
+    async def _search():
+        from graphiti_core.search.search_config import (
+            SearchConfig, EdgeSearchConfig, EdgeSearchMethod, EdgeReranker,
+            NodeSearchConfig, NodeSearchMethod, NodeReranker,
+        )
+        config = SearchConfig(
+            node_config = NodeSearchConfig(
+                search_methods = [NodeSearchMethod.bm25, NodeSearchMethod.cosine_similarity],
+                reranker       = NodeReranker.rrf,
+            ),
+            edge_config = EdgeSearchConfig(
+                search_methods = [EdgeSearchMethod.bm25, EdgeSearchMethod.cosine_similarity],
+                reranker       = EdgeReranker.rrf,
+            ),
+            limit = 10,
+        )
+        return await graphiti.search_(query=ip_address, config=config)
 
-    node_data = graph.G.nodes[ip_address]
-    attacks   = graph.attack_types_from(ip_address)
-    neighbors = graph.neighbors_of(ip_address)
+    results = asyncio.get_event_loop().run_until_complete(_search())
 
-    # Build outbound connection details
-    connections = []
-    for dst in graph.G.successors(ip_address):
-        edge = graph.G[ip_address][dst]
-        connections.append({
-            "destination" : dst,
-            "rel_type"    : edge.get("rel_type", "LINKED"),
-            "action"      : edge.get("action", "?"),
-            "threat"      : edge.get("threat", "?"),
-            "severity"    : edge.get("severity", "?"),
-            "bytes"       : edge.get("bytes", 0),
-            "timestamp"   : edge.get("timestamp", "?"),
-        })
+    facts = [e.fact for e in results.edges if ip_address in e.fact]
+    nodes = [{"name": n.name, "summary": n.summary} for n in results.nodes]
 
     return json.dumps({
-        "ip"           : ip_address,
-        "is_internal"  : node_data.get("is_internal", False),
-        "is_malicious" : node_data.get("is_malicious", False),
-        "attack_types" : attacks,
-        "total_connections": len(neighbors),
-        "outbound_connections": connections[:10],  # cap at 10 for readability
+        "ip"            : ip_address,
+        "related_facts" : facts[:10],
+        "related_nodes" : nodes[:10],
+        "fact_count"    : len(facts),
+        "status"        : "found" if facts or nodes else "no_data",
     }, indent=2)
 
 
@@ -136,146 +149,116 @@ def lookup_ip(ip_address: str) -> str:
 def check_port_scan(ip_address: str) -> str:
     """
     Check whether an IP address performed port scanning activity.
-    Looks for Nmap signatures and sequential multi-host connections.
+    Queries Graphiti for Nmap and port scanning facts related to this IP.
 
     Args:
         ip_address: The IP to check for port scanning behaviour
     """
-    graph = get_graph()
+    graphiti = get_graphiti()
 
-    if not graph.G.has_node(ip_address):
-        return json.dumps({"ip": ip_address, "port_scan_detected": False, "reason": "IP not in dataset"})
+    async def _search():
+        return await graphiti.search(
+            query       = f"{ip_address} port scan nmap scanning",
+            num_results = 10,
+        )
 
-    attacks = graph.attack_types_from(ip_address)
-    # Count how many distinct IPs this source has connected to
-    unique_targets = list(graph.G.successors(ip_address))
-    ip_targets = [
-        t for t in unique_targets
-        if graph.G.nodes[t].get("type") == "IP"
+    edges = asyncio.get_event_loop().run_until_complete(_search())
+
+    scan_facts = [
+        e.fact for e in edges
+        if any(kw in e.fact.lower() for kw in ["nmap", "scan", "port", ip_address])
     ]
-
-    is_scanner = "port-scan" in attacks or len(ip_targets) >= 3
 
     return json.dumps({
         "ip"                 : ip_address,
-        "port_scan_detected" : is_scanner,
-        "attack_types_found" : attacks,
-        "unique_ip_targets"  : len(ip_targets),
-        "targets"            : ip_targets[:10],
-        "confidence"         : "high" if "port-scan" in attacks else ("medium" if len(ip_targets) >= 3 else "low"),
+        "port_scan_detected" : len(scan_facts) > 0,
+        "evidence"           : scan_facts[:5],
+        "confidence"         : "high" if len(scan_facts) >= 2 else ("medium" if scan_facts else "low"),
     }, indent=2)
 
 
 @mcp.tool()
 def get_attack_summary(attack_type: str) -> str:
     """
-    Get a summary of all IPs associated with a specific attack type.
-    Valid attack types: port-scan, sql-injection, xss, data-exfiltration, c2-beacon, benign-traffic
+    Get a summary of all facts related to a specific attack type.
+    Examples: 'sql injection', 'port scan', 'xss', 'data exfiltration'
 
     Args:
         attack_type: The attack category to summarise
     """
-    graph = get_graph()
-    from step2_graph_builder import NODE_ATTACK, NODE_IP
+    graphiti = get_graphiti()
 
-    # Find the attack node in the graph
-    if not graph.G.has_node(attack_type):
-        return json.dumps({
-            "attack_type": attack_type,
-            "message"    : "No IPs found for this attack type in our dataset",
-            "known_types": [n for n, d in graph.G.nodes(data=True) if d.get("type") == NODE_ATTACK],
-        })
+    async def _search():
+        return await graphiti.search(
+            query       = f"{attack_type} attack malicious blocked",
+            num_results = 10,
+        )
 
-    # Walk backwards: who has an edge TO this attack node?
-    attacker_ips = list(graph.G.predecessors(attack_type))
-
-    details = []
-    for ip in attacker_ips:
-        node = graph.G.nodes.get(ip, {})
-        if node.get("type") == NODE_IP:
-            details.append({
-                "ip"          : ip,
-                "is_internal" : node.get("is_internal", False),
-                "is_malicious": node.get("is_malicious", False),
-            })
+    edges = asyncio.get_event_loop().run_until_complete(_search())
 
     return json.dumps({
-        "attack_type"   : attack_type,
-        "attacker_count": len(details),
-        "attackers"     : details,
-        "summary"       : f"{len(details)} IP(s) performed {attack_type} in our dataset",
+        "attack_type" : attack_type,
+        "facts_found" : len(edges),
+        "facts"       : [
+            {"fact": e.fact, "timestamp": str(e.valid_at)[:10] if e.valid_at else "N/A"}
+            for e in edges[:10]
+        ],
+        "summary": f"Found {len(edges)} graph facts related to {attack_type}",
     }, indent=2)
 
 
 @mcp.tool()
-def search_logs(keyword: str, field: str = "any") -> str:
+def search_logs(keyword: str) -> str:
     """
-    Search through the threat intelligence graph for logs matching a keyword.
-    Searches edge attributes (summaries, user agents, paths).
+    Semantic search through the threat intelligence graph.
+    Uses both keyword (BM25) and vector similarity against FalkorDB.
 
     Args:
-        keyword: Text to search for (e.g. 'sqlmap', 'blocked', '192.168.1.1')
-        field:   Which field to search: 'summary', 'action', 'threat', or 'any'
+        keyword: Natural language query (e.g. 'blocked malicious SQL', '10.0.0.45 attack')
     """
-    graph = get_graph()
-    keyword_lower = keyword.lower()
-    matches = []
+    graphiti = get_graphiti()
 
-    for src, dst, edge_data in graph.G.edges(data=True):
-        # Only search edges that have summary/event info
-        if "summary" not in edge_data:
-            continue
+    async def _search():
+        return await graphiti.search(query=keyword, num_results=10)
 
-        # Determine what to search
-        if field == "summary":
-            haystack = edge_data.get("summary", "")
-        elif field == "action":
-            haystack = edge_data.get("action", "")
-        elif field == "threat":
-            haystack = edge_data.get("threat", "")
-        else:  # "any"
-            haystack = " ".join(str(v) for v in edge_data.values())
-
-        if keyword_lower in haystack.lower():
-            matches.append({
-                "source"   : src,
-                "dest"     : dst,
-                "action"   : edge_data.get("action"),
-                "threat"   : edge_data.get("threat"),
-                "severity" : edge_data.get("severity"),
-                "timestamp": edge_data.get("timestamp"),
-                "summary"  : edge_data.get("summary", ""),
-            })
+    edges = asyncio.get_event_loop().run_until_complete(_search())
 
     return json.dumps({
         "keyword"     : keyword,
-        "match_count" : len(matches),
-        "results"     : matches[:20],  # cap at 20
+        "match_count" : len(edges),
+        "results"     : [
+            {
+                "fact"      : e.fact,
+                "timestamp" : str(e.valid_at)[:10] if e.valid_at else "N/A",
+            }
+            for e in edges
+        ],
     }, indent=2)
 
 
 @mcp.tool()
 def list_all_malicious_ips() -> str:
     """
-    Return a list of all IP addresses flagged as malicious in our threat graph.
-    Use this as a starting point for threat hunting.
+    Search for all malicious IP-related facts in the threat graph.
+    Uses Graphiti semantic search to find malicious activity.
     """
-    graph = get_graph()
-    malicious = graph.malicious_ips()
+    graphiti = get_graphiti()
 
-    result = []
-    for ip in malicious:
-        attacks = graph.attack_types_from(ip)
-        result.append({
-            "ip"          : ip,
-            "attack_types": attacks,
-            "is_internal" : graph.G.nodes[ip].get("is_internal", False),
-        })
+    async def _search():
+        return await graphiti.search(
+            query       = "malicious IP address attack threat blocked external",
+            num_results = 15,
+        )
+
+    edges = asyncio.get_event_loop().run_until_complete(_search())
 
     return json.dumps({
-        "total_malicious_ips": len(result),
-        "ips"                : result,
-        "generated_at"       : datetime.utcnow().isoformat() + "Z",
+        "total_facts_found" : len(edges),
+        "malicious_facts"   : [
+            {"fact": e.fact, "timestamp": str(e.valid_at)[:10] if e.valid_at else "N/A"}
+            for e in edges
+        ],
+        "generated_at": datetime.utcnow().isoformat() + "Z",
     }, indent=2)
 
 
